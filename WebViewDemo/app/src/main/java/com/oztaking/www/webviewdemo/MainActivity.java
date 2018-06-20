@@ -1,5 +1,7 @@
 package com.oztaking.www.webviewdemo;
 
+import android.app.ProgressDialog;
+import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
@@ -24,6 +26,7 @@ public class MainActivity extends AppCompatActivity {
     private String s3 = "https://finance.qq.com/a/20180620/023025.htm";
     private String s4 = "http://www.w3school.com.cn/";
     private String s5 = "https://mail.qq.com/cgi-bin/loginpage";
+    private String s6 = "https://www.taobao.com/";
 
 
     @Override
@@ -52,11 +55,14 @@ public class MainActivity extends AppCompatActivity {
         //【5】js调用java代码
 //        jsInvokeJava();
 
-        javaInvokeJs();
 
         //【6】java调用js
 //        javaInvokeJs();
-//        Android2JS(mWebView);
+
+        //[7]增加进度条的监听
+        showProgressDialog();
+
+
     }
 
     //【1】使用外部浏览器加载页面；
@@ -171,7 +177,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    //【5】java调用js的代码
+    //【6】java调用js的代码
 
     private void javaInvokeJs(){
 
@@ -188,6 +194,39 @@ public class MainActivity extends AppCompatActivity {
 
             }
         });
+    }
+
+
+    //[7]增加进度条的监听
+    private void showProgressDialog(){
+        final ProgressDialog progressDialog = new ProgressDialog(this);
+
+        WebSettings settings = mWebView.getSettings();
+
+        settings.setJavaScriptEnabled(true);
+
+        mWebView.setWebViewClient(new WebViewClient(){
+            @Override
+            public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                super.onPageStarted(view, url, favicon);
+                progressDialog.show();
+
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                progressDialog.dismiss();
+            }
+        });
+
+        mLoadButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mWebView.loadUrl(s6);
+            }
+        });
+
     }
 
 
