@@ -1,17 +1,26 @@
 package com.oztaking.www.webviewdemo;
 
 import android.app.ProgressDialog;
+import android.content.res.AssetFileDescriptor;
 import android.graphics.Bitmap;
+import android.net.http.SslError;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
+import android.view.KeyEvent;
 import android.view.View;
 import android.webkit.JavascriptInterface;
+import android.webkit.SslErrorHandler;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Toast;
+
+import java.io.FileInputStream;
+import java.io.IOException;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -60,10 +69,45 @@ public class MainActivity extends AppCompatActivity {
 //        javaInvokeJs();
 
         //[7]增加进度条的监听
-        showProgressDialog();
+//        showProgressDialog();
+
+        //【8】拦截
+//        webViewUrlReplace();
+
+        //【9】错误页面的加载
+//        webViewErrorMsgInvoke();
+
+        //[10]https ssl证书有问题
+//        webViewSSLError();
+
+        //[11]根据资源替换资源
+        webViewRes();
+
+
 
 
     }
+
+
+    //【12】增加返回键功能
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_BACK){
+            if (mWebView.canGoBack()){
+                mWebView.goBack();
+                return true;
+            }else {
+                System.exit(0);
+            }
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+
+
+    //滚动事件监听
+
+
 
     //【1】使用外部浏览器加载页面；
     private void webViewLoadByBrower() {
@@ -143,7 +187,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     //【5】js调用java代码
-    private void jsInvokeJava(){
+    private void jsInvokeJava() {
         /**
          * public void addJavascriptInterface(Object obj, String interfaceName)
          * Object obj：interfaceName所绑定的对象
@@ -156,13 +200,13 @@ public class MainActivity extends AppCompatActivity {
         WebSettings settings = mWebView.getSettings();
         settings.setJavaScriptEnabled(true);
 
-        mWebView.addJavascriptInterface(new JSBridge(),"kk");
+        mWebView.addJavascriptInterface(new JSBridge(), "kk");
         mWebView.loadUrl("file:///android_asset/1.html");
 
     }
 
     public class JSBridge {
-//        @JavascriptInterface
+        //        @JavascriptInterface
 //        public void toastMsg(String msg) {
 //            Toast.makeText(getApplicationContext(), "通过native传递的Toast：" + msg, Toast.LENGTH_SHORT).show();
 //
@@ -179,13 +223,13 @@ public class MainActivity extends AppCompatActivity {
 
     //【6】java调用js的代码
 
-    private void javaInvokeJs(){
+    private void javaInvokeJs() {
 
         WebSettings settings = mWebView.getSettings();
         settings.setJavaScriptEnabled(true);
         mWebView.loadUrl("file:///android_asset/1.html");
 
-        mWebView.addJavascriptInterface(new JSBridge(),"kk");
+        mWebView.addJavascriptInterface(new JSBridge(), "kk");
 
         mLoadButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -198,14 +242,14 @@ public class MainActivity extends AppCompatActivity {
 
 
     //[7]增加进度条的监听
-    private void showProgressDialog(){
+    private void showProgressDialog() {
         final ProgressDialog progressDialog = new ProgressDialog(this);
 
         WebSettings settings = mWebView.getSettings();
 
         settings.setJavaScriptEnabled(true);
 
-        mWebView.setWebViewClient(new WebViewClient(){
+        mWebView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
                 super.onPageStarted(view, url, favicon);
@@ -230,6 +274,102 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+    //【8】url拦截替换
+    private void webViewUrlReplace() {
+        WebSettings settings = mWebView.getSettings();
+        settings.setJavaScriptCanOpenWindowsAutomatically(true);
+        settings.setJavaScriptEnabled(true);
+
+        mWebView.loadUrl("https://mail.qq.com/cgi-bin/loginpage");
+
+        mWebView.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                Toast.makeText(getApplicationContext(),"拦截",Toast.LENGTH_SHORT).show();
+//                return super.shouldOverrideUrlLoading(view, url);
+                if (url.contains("mail.qq.com")){
+                    view.loadUrl("https://www.baidu.com");
+                }
+                return false;
+            }
+        });
+    }
+
+    //【9】加载错误的信息的回调
+    private void webViewErrorMsgInvoke(){
+        WebSettings settings = mWebView.getSettings();
+        settings.setJavaScriptEnabled(true);
+
+
+
+        mWebView.setWebViewClient(new WebViewClient(){
+            @Override
+            public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
+                super.onReceivedError(view, errorCode, description, failingUrl);
+                mWebView.loadUrl("file:///android_asset/error.html");
+                Log.e("webView","onReceivedError:"+errorCode+"  "+description);
+
+            }
+        });
+
+        mWebView.loadUrl("123");
+
+    }
+
+
+    //[10]ssl证书错误
+    private void webViewSSLError(){
+        WebSettings settings = mWebView.getSettings();
+        settings.setJavaScriptEnabled(true);
+
+        mWebView.setWebViewClient(new WebViewClient(){
+            @Override
+            public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
+//                super.onReceivedSslError(view, handler, error);
+                //发生错误之后继续加载
+                handler.proceed();
+                Log.e("webView","sslError:"+error.toString());
+            }
+
+            @Override
+            public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
+                super.onReceivedError(view, errorCode, description, failingUrl);
+                mWebView.loadUrl("file:///android_asset/error.html");
+                Log.e("webView","onReceivedError:"+errorCode+"  "+description);
+            }
+        });
+        mWebView.loadUrl("https://www.12306.cn/");
+    }
+
+
+    //[11】修改图片
+    private void webViewRes() {
+        WebSettings settings = mWebView.getSettings();
+        settings.setJavaScriptEnabled(true);
+
+        mWebView.setWebViewClient(new WebViewClient() {
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView view, String url) {
+
+                if (url.equals("http://localhost/aaa.png")) {
+                    try {
+                        AssetFileDescriptor fd = getAssets().openFd("ic_launcher.png");
+//                        AssetFileDescriptor fd = getAssets().openFd("s07.jpg");
+                        FileInputStream is = fd.createInputStream();
+                        WebResourceResponse response = new WebResourceResponse("image/png", "UTF-8", is);
+                        return response;
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+                return super.shouldInterceptRequest(view, url);
+            }
+
+        });
+
+//        mWebView.loadUrl("file:///android_asset/1.html");
+        mWebView.loadUrl(s2);
+    }
 
 
 
